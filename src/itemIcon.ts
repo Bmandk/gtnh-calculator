@@ -8,7 +8,7 @@ let oredictElements: IconBox[] = [];
 
 // Global actions map
 export const actions: { [key: string]: string } = {
-    "item_icon_click": "Left/Right click to add recipe",
+    "item_icon_click": "Left/Right click to add recipe • Middle click to add as product",
     "select": "Click to select",
     "toggle_link_ignore": "Click to toggle link ignore",
     "crafter_click": "Click to select another crafter"
