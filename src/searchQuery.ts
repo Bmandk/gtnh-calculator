@@ -18,43 +18,75 @@ export class SearchQuery
     constructor(text:string)
     {
         this.original = text;
-        this.words = text.match(/[A-Za-z0-9@]+/g) || [];
+        this.words = [];
         this.indexBits = new Int32Array(4);
         this.mod = null;
 
-        for (var i=0; i<this.words.length; i++)
+        // Text wrapped in double quotes is treated as a single exact term that
+        // must appear contiguously (including its spaces). Everything outside
+        // quotes is tokenized into alphanumeric words as before.
+        var regex = /"([^"]*)"|([^"]+)/g;
+        var match:RegExpExecArray | null;
+        while ((match = regex.exec(text)) !== null)
         {
-            var word = this.words[i];
-            if (word.startsWith('@')) {
-                this.mod = word.substring(1).toLowerCase();
-                this.words.splice(i, 1);
-                i--;
+            if (match[1] !== undefined)
+            {
+                var phrase = match[1].toLowerCase();
+                if (phrase.length === 0)
+                    continue;
+                this.words.push(phrase);
+                this.AddBits(phrase);
+            }
+            else
+            {
+                var tokens = match[2].match(/[A-Za-z0-9@]+/g);
+                if (tokens === null)
+                    continue;
+                for (var t=0; t<tokens.length; t++)
+                {
+                    var token = tokens[t];
+                    if (token.startsWith('@')) {
+                        this.mod = token.substring(1).toLowerCase();
+                        continue;
+                    }
+                    var word = token.toLowerCase();
+                    this.words.push(word);
+                    this.AddBits(word);
+                }
+            }
+        }
+    }
+
+    AddBits(word:string)
+    {
+        var len = word.length;
+        var c1=-1, c2=-1;
+        for (var j=0; j<len; j++) {
+            var char = word.charCodeAt(j);
+            var c0:number;
+            if (char >= code0 && char <= code9)
+                c0 = char - code0;
+            else if (char >= codea && char <= codez)
+                c0 = char - codea + 10;
+            else if (char >= codeA && char <= codeZ)
+                c0 = char - codeA + 10;
+            else {
+                // Reset context at non-alphanumeric chars (e.g. spaces inside a
+                // quoted phrase) so we never build n-grams spanning the boundary.
+                c1 = -1;
+                c2 = -1;
                 continue;
             }
-            this.words[i] = word = word.toLowerCase();
-            var len = word.length;
-            var c1=0, c2=0;
-            for (var j=0; j<len; j++) {
-                var char = word.charCodeAt(j);
-                var c0:number;
-                if (char >= code0 && char <= code9)
-                    c0 = char - code0;
-                else if (char >= codea && char <= codez)
-                    c0 = char - codea + 10;
-                else if (char >= codeA && char <= codeZ)
-                    c0 = char - codeA + 10;
-                else continue;
 
-                this.SetBit(charOffset + c0);
-                if (j >= 1) {
-                    this.SetBit((c1 * charCount + c0)%charOffset);
-                    if (j >= 2)
-                        this.SetBit(((c2 * charCount + c1)*charCount + c0)%charOffset);
-                }
-
-                c2 = c1;
-                c1 = c0;
+            this.SetBit(charOffset + c0);
+            if (c1 >= 0) {
+                this.SetBit((c1 * charCount + c0)%charOffset);
+                if (c2 >= 0)
+                    this.SetBit(((c2 * charCount + c1)*charCount + c0)%charOffset);
             }
+
+            c2 = c1;
+            c1 = c0;
         }
     }
 
