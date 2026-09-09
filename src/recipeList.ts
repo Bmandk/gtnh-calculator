@@ -929,7 +929,7 @@ export class RecipeList {
 
     private renderProductList() {
         const products = page.products
-            .filter(product => product instanceof ProductModel && product.amount !== 0)
+            .filter(product => product instanceof ProductModel)
             .sort((a, b) => (b as ProductModel).amount - (a as ProductModel).amount);
 
         this.productItemsContainer.innerHTML = `
