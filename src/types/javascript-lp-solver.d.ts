@@ -21,6 +21,9 @@ export interface Model {
             [key: string]: number;
         };
     };
+    ints?: {
+        [key: string]: number;
+    };
 }
 
 export interface Solution {
