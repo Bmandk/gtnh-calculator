@@ -306,10 +306,54 @@ export function SolvePage(page:PageModel):void
             }
         }
         CreateAndMatchLinks(page.rootGroup, model, collection);
+
+        // When "whole recipes" is enabled, force each recipe to run a whole number of times
+        // (no partial crafts) per displayed time unit.
+        let scaledRecipeVars: string[] = [];
+        if (page.settings.wholeRecipes) {
+            // Relax the item links from exact equality to "produce at least what is needed", so a
+            // recipe is allowed to overproduce. Without this, requesting an amount that is not an
+            // exact multiple of a recipe's output would be infeasible once recipes must be whole.
+            // The objective still minimizes total recipes, so no surplus is produced unless the
+            // integrality requirement forces it. (Output coefficients are negative, so the
+            // surplus-allowing direction is an upper bound on the constraint's left-hand side.)
+            for (const name in model.constraints) {
+                if (!name.startsWith("link_"))
+                    continue;
+                const constraint = model.constraints[name];
+                if (constraint.equal !== undefined) {
+                    constraint.max = constraint.equal;
+                    delete constraint.equal;
+                }
+            }
+
+            // Each recipe variable is expressed in recipes-per-minute, while the user thinks in
+            // recipes-per-(displayed time unit). Rescale the variable to displayed units
+            // (v = u * timeScale), constrain it to integers, then convert the solution back to
+            // recipes-per-minute afterwards.
+            model.ints = {};
+            for (const varName in model.variables) {
+                if (!varName.startsWith("recipe_"))
+                    continue;
+                const coefficients = model.variables[varName];
+                for (const key in coefficients)
+                    coefficients[key] *= timeScale;
+                model.ints[varName] = 1;
+                scaledRecipeVars.push(varName);
+            }
+        }
+
         console.log("Solve model",model);
 
         let solution = window.solver.Solve(model);
         console.log("Solve solution",solution);
+
+        // Convert integer recipe counts (per displayed time unit) back to recipes-per-minute.
+        for (const varName of scaledRecipeVars) {
+            if (typeof solution[varName] === "number")
+                solution[varName] = (solution[varName] as number) * timeScale;
+        }
+
         page.status = solution.feasible ? solution.bounded ? "solved" : "unbounded" : "infeasible";
         ApplySolutionGroup(page.rootGroup, solution, model, solution.feasible);
     } catch (error) {

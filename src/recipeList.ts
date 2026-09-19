@@ -250,6 +250,13 @@ export class RecipeList {
             }
         });
 
+        this.actionHandlers.set("update_whole_recipes", (obj, event, parent) => {
+            if (obj instanceof PageModel && event.type === "change") {
+                obj.settings.wholeRecipes = (event.target as HTMLInputElement).checked;
+                UpdateProject();
+            }
+        });
+
         this.actionHandlers.set("update_machine_choice", (obj, event, parent) => {
             if (obj instanceof RecipeModel && event.type === "change") {
                 const target = event.target as HTMLInputElement | HTMLSelectElement;
@@ -820,6 +827,12 @@ export class RecipeList {
                         <option value="sec" ${page.settings.timeUnit === "sec" ? 'selected' : ''}>Seconds</option>
                         <option value="tick" ${page.settings.timeUnit === "tick" ? 'selected' : ''}>Ticks</option>
                     </select>
+                </div>
+                <div class="setting-item">
+                    <label title="Force every recipe to run a whole number of times per time unit, so outputs are never partial crafts.">
+                        <input type="checkbox" data-iid="${page.iid}" data-action="update_whole_recipes" ${page.settings.wholeRecipes ? 'checked' : ''}>
+                        Whole recipes only (no partial crafts)
+                    </label>
                 </div>
                 <div class="share-links">
                     Share:
