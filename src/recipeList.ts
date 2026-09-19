@@ -57,7 +57,10 @@ export class RecipeList {
         });
 
         this.actionHandlers.set("item_icon_click", (obj, event, parent) => {
-            if (event instanceof MouseEvent && (event.type === "click" || event.type === "contextmenu") && event.target instanceof IconBox && obj instanceof RecipeGroupModel) {
+            if (!(event instanceof MouseEvent) || !(event.target instanceof IconBox) || !(obj instanceof RecipeGroupModel))
+                return;
+
+            if (event.type === "click" || event.type === "contextmenu") {
                 const goods = event.target.obj;
 
                 const mode = event.type === "click" ? ShowNeiMode.Production : ShowNeiMode.Consumption;
@@ -70,6 +73,12 @@ export class RecipeList {
                 };
 
                 ShowNei(goods, mode, callback);
+            } else if (event.type === "auxclick" && event.button === 1) {
+                event.preventDefault();
+                const goods = event.target.obj;
+                if (goods instanceof Goods) {
+                    this.addProduct(goods, 1);
+                }
             }
         });
 
@@ -348,6 +357,8 @@ export class RecipeList {
         let commonHandler = (e: Event) => {
             if (e.type === "contextmenu" && e instanceof MouseEvent && (e.ctrlKey || e.metaKey))
                 return;
+            if (e.type === "auxclick" && e instanceof MouseEvent && e.button !== 1)
+                return;
             const element = (e.target as HTMLElement).closest("[data-action]") as HTMLElement;
             if (element) {
                 const iid = parseInt(element.getAttribute("data-iid")!) || page.iid;
@@ -366,6 +377,14 @@ export class RecipeList {
         document.addEventListener("click", commonHandler);
         document.addEventListener("change", commonHandler);
         document.addEventListener("contextmenu", commonHandler);
+        document.addEventListener("auxclick", commonHandler);
+
+        // Prevent the browser's middle-click autoscroll from engaging over actionable elements
+        document.addEventListener("mousedown", (e) => {
+            if (e instanceof MouseEvent && e.button === 1 && (e.target as HTMLElement).closest("[data-action]")) {
+                e.preventDefault();
+            }
+        });
 
         // Tooltip handling
         document.addEventListener("mouseenter", (e) => {
